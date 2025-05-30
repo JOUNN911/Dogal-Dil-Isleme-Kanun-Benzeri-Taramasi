@@ -14,10 +14,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 import joblib
 from datetime import datetime
 
-# NLTK veri paketlerini indirme
 nltk.download('punkt')
 
-# Stop words listesi
 STOP_WORDS = set([
     "acaba", "ama", "aslında", "az", "bazı", "belki", "biri", "birkaç",
     "birşey", "biz", "bu", "çok", "çünkü", "da", "daha", "de", "defa",
@@ -28,7 +26,6 @@ STOP_WORDS = set([
     "bir", "kadar", "sonra", "diğer", "şimdi", "zaman", "böyle", "tarafından"
 ])
 
-# Klasör yapısı oluşturma
 os.makedirs("word2vec_models/stemmed", exist_ok=True)
 os.makedirs("word2vec_models/lemmatized", exist_ok=True)
 os.makedirs("zipf_analizi", exist_ok=True)
@@ -38,41 +35,31 @@ os.makedirs("tfidf_models", exist_ok=True)
 os.makedirs("benzer_metinler", exist_ok=True)
 
 
-# Klasördeki tüm .txt dosyalarını al
 txt_files = sorted(glob.glob("gazeteler/*.txt"))  # glob modülünün glob fonksiyonunu kullan
 
 
 def clean_text(text):
     """Metin temizleme fonksiyonu (nokta ve virgül korunur)"""
     text = text.lower()
-    # Nokta ve virgül dışındaki tüm noktalama işaretlerini kaldır
     text = re.sub(r'[^\w\s.,ğüşıöçĞÜŞİÖÇ]', ' ', text)
-    # Sayıları kaldır
     text = re.sub(r'\d+', ' ', text)
-    # Fazla boşlukları sadeleştir
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
 
 
 def normalize_and_tokenize(text):
-    """Tokenizasyon fonksiyonu"""
     words = word_tokenize(text)
     return [word for word in words if word not in STOP_WORDS and len(word) > 1]
 
 
 def advanced_stem(word, method=1):
-    """Gelişmiş stemming fonksiyonu (8 farklı yöntem)"""
     word = word.lower()
 
-    # Tüm yöntemler için ortak kontrol
     if len(word) <= 3:  # Çok kısa kelimeleri olduğu gibi döndür
         return word
-
-    # Yöntem 1: Temel ekleri kaldır
     if method == 1:
         suffixes = ['lar', 'ler', 'da', 'de', 'ta', 'te']
-    # Yöntem 2: İyelik ekleri
     elif method == 2:
         suffixes = ['ın', 'in', 'un', 'ün', 'ım', 'im', 'um', 'üm']
     # Yöntem 3: Hal ekleri
@@ -106,7 +93,6 @@ def advanced_lemma(word, method=1):
     """Basit lemmatization fonksiyonu (8 farklı yöntem)"""
     word = word.lower()
 
-    # Tüm yöntemler için ortak kontrol
     if len(word) <= 3:  # Çok kısa kelimeleri olduğu gibi döndür
         return word
 
@@ -153,12 +139,10 @@ def process_text(text):
     cleaned = clean_text(text)
     tokens = normalize_and_tokenize(cleaned)
 
-    # 8 farklı stemming yöntemi
     stems = []
     for i in range(1, 9):
         stems.append([advanced_stem(t, i) for t in tokens])
 
-    # 8 farklı lemmatization yöntemi
     lemmas = []
     for i in range(1, 9):
         lemmas.append([advanced_lemma(t, i) for t in tokens])
@@ -180,7 +164,6 @@ def process_input_text(input_text):
     print("\nLemmatization Sonuçları (1. yöntem):")
     print(lemmas[0])
 
-    # TF-IDF vektör modeli yüklü mü kontrol et
     try:
         tfidf_model = joblib.load('tfidf_models/tfidf_lemmatized.model')
         transformed = tfidf_model.transform([' '.join(lemmas[0])])
@@ -189,7 +172,6 @@ def process_input_text(input_text):
     except Exception as e:
         print(f"TF-IDF modeli yüklenemedi: {str(e)}")
 
-    # Word2Vec örneği
     try:
         w2v_model = Word2Vec.load('word2vec_models/lemmatized/lemma_model_1.model')
         print("\nWord2Vec örnek vektörler:")
@@ -219,7 +201,6 @@ def apply_zipfs_law(words, output_prefix):
     plt.savefig(f"zipf_analizi/{output_prefix}_loglog_zipf.png", dpi=300)
     plt.close()
 
-    # En sık kullanılan 100 kelimeyi kaydet
     with open(f"temizlenmis_veriler/{output_prefix}_sik_kelimeler.txt", "w", encoding="utf-8") as f:
         for word, count in most_common[:100]:
             f.write(f"{word}: {count}\n")
@@ -281,7 +262,6 @@ def create_tfidf_models(lemmas, stems):
 def compare_input_with_dataset(input_text):
     print("\n--- Veri Seti Karşılaştırması Başlıyor ---")
 
-    # Tüm dosyalar için önceden işlenmiş veriler
     all_lemmas = []
     all_stems = []
 
@@ -295,10 +275,8 @@ def compare_input_with_dataset(input_text):
         except Exception as e:
             print(f"{file} dosyasında hata: {e}")
 
-    # Girdi metni işlenir
     _, input_lemmas, input_stems = process_text(input_text)
 
-    # TF-IDF modelleri yüklenir
     try:
         tfidf_lemma_model = joblib.load('tfidf_models/tfidf_lemmatized.model')
         tfidf_stem_model = joblib.load('tfidf_models/tfidf_stemmed.model')
@@ -307,13 +285,12 @@ def compare_input_with_dataset(input_text):
         return
 
     tfidf_lemma_matrix = tfidf_lemma_model.transform(
-        [' '.join(doc) for doc in all_lemmas[0:1]])  # sadece örnek olarak 1 tanesini tutuyor
+        [' '.join(doc) for doc in all_lemmas[0:1]])  
     tfidf_stem_matrix = tfidf_stem_model.transform([' '.join(doc) for doc in all_stems[0:1]])
 
     input_lemma_vec = tfidf_lemma_model.transform([' '.join(input_lemmas[0])])
     input_stem_vec = tfidf_stem_model.transform([' '.join(input_stems[0])])
 
-    # TF-IDF Benzerliği
     lemma_similarities = []
     stem_similarities = []
     file_texts = []
@@ -325,7 +302,6 @@ def compare_input_with_dataset(input_text):
                 tokens, lemmas, stems = process_text(file_text)
                 file_texts.append(file_text)
 
-                # TF-IDF vektörleri
                 lemma_vec = tfidf_lemma_model.transform([' '.join(lemmas[0])])
                 stem_vec = tfidf_stem_model.transform([' '.join(stems[0])])
 
@@ -345,7 +321,6 @@ def compare_input_with_dataset(input_text):
     for file, score in sorted(stem_similarities, key=lambda x: x[1], reverse=True)[:5]:
         print(f"{file} - Benzerlik: {score:.4f}")
 
-    # Word2Vec ile benzerlik: Ortalama vektörler üzerinden
     try:
         w2v_lemma_model = Word2Vec.load('word2vec_models/lemmatized/lemma_model_1.model')
         w2v_stem_model = Word2Vec.load('word2vec_models/stemmed/stem_model_1.model')
@@ -399,7 +374,7 @@ def compare_input_with_dataset(input_text):
                         out.write(content)
                 except Exception as e:
                     print(f"{file_path} kaydedilirken hata: {str(e)}")
-    # En benzer 5 metni kaydet (TF-IDF - Lemmatized'e göre)
+
     top5_lemma = sorted(lemma_similarities, key=lambda x: x[1], reverse=True)[:5]
 
     for i, (file_path, score) in enumerate(top5_lemma, 1):
@@ -412,7 +387,7 @@ def compare_input_with_dataset(input_text):
                 out_f.write(content)
         except Exception as e:
             print(f"{file_path} dosyası kaydedilirken hata: {str(e)}")
-    # En benzer 5 metni dosyaya yaz
+
     from datetime import datetime
 
     def save_top_matches(similarities, method_name):
@@ -437,7 +412,6 @@ def compare_input_with_dataset(input_text):
     save_top_matches(lemma_sim_w2v, "w2v_lemma")
     save_top_matches(stem_sim_w2v, "w2v_stem")
 
-    # En benzer 5 metni dosyaya yaz
     def save_top_matches(similarities, method_name):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         out_dir = f"benzer_metinler/{timestamp}_{method_name}_top5"
@@ -462,52 +436,25 @@ def compare_input_with_dataset(input_text):
 
 
 def generate_similar_texts(input_text, num_similar=5, output_dir="benzer_metinler"):
-    """
-    TF-IDF ve Word2Vec modellerini kullanarak girilen metne benzer yeni metinler üretir
-    ve bunları belirtilen klasöre kaydeder.
-
-    Args:
-        input_text (str): Karşılaştırılacak örnek metin
-        num_similar (int): Üretilecek benzer metin sayısı (varsayılan: 5)
-        output_dir (str): Çıktı klasörü (varsayılan: "benzer_metinler")
-    """
-    # Gerekli modülleri yükle
-    from gensim.models import Word2Vec
-    from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.metrics.pairwise import cosine_similarity
-    import numpy as np
-    import os
-    import random
-    from datetime import datetime
-    import joblib
-
-    # Klasörü oluştur
     os.makedirs(output_dir, exist_ok=True)
 
-    # Girdi metnini işle
     _, input_lemmas, input_stems = process_text(input_text)
 
-    # TF-IDF ve Word2Vec modellerini yükle
     try:
-        # TF-IDF modelleri
         tfidf_lemma_model = joblib.load('tfidf_models/tfidf_lemmatized.model')
         tfidf_stem_model = joblib.load('tfidf_models/tfidf_stemmed.model')
 
-        # Word2Vec modelleri
         w2v_lemma_model = Word2Vec.load('word2vec_models/lemmatized/lemma_model_1.model')
         w2v_stem_model = Word2Vec.load('word2vec_models/stemmed/stem_model_1.model')
     except Exception as e:
         print(f"Modeller yüklenirken hata oluştu: {str(e)}")
         return
 
-    # Benzer metinler üretmek için fonksiyonlar
     def generate_from_tfidf(input_vec, model, feature_names, num_words=50):
         """TF-IDF vektöründen benzer kelimelerle metin üret"""
-        # En yüksek ağırlıklı kelimeleri al
         sorted_items = np.argsort(input_vec.toarray().flatten())[::-1]
         top_words = [feature_names[i] for i in sorted_items[:num_words]]
 
-        # Kelimeleri karıştırıp rastgele birleştir
         random.shuffle(top_words)
         generated_text = ' '.join(top_words[:random.randint(20, num_words)])
         return generated_text
@@ -518,19 +465,15 @@ def generate_similar_texts(input_text, num_similar=5, output_dir="benzer_metinle
         if not input_words:
             return ""
 
-        # Modelde bulunan kelimeleri filtrele
         valid_words = [word for word in input_words if word in model.wv]
         if not valid_words:
             return ""
 
-        # Başlangıç kelimesi rastgele seç
         current_word = random.choice(valid_words)
         generated_words.append(current_word)
 
-        # Zincir oluştur
         for _ in range(num_words - 1):
             try:
-                # En benzer kelimeleri bul
                 similar_words = model.wv.most_similar(current_word, topn=5)
                 next_word = random.choice(similar_words)[0]
                 generated_words.append(next_word)
@@ -540,7 +483,6 @@ def generate_similar_texts(input_text, num_similar=5, output_dir="benzer_metinle
 
         return ' '.join(generated_words)
 
-    # TF-IDF ile metin üret (lemmatized)
     input_lemma_vec = tfidf_lemma_model.transform([' '.join(input_lemmas[0])])
     tfidf_lemma_text = generate_from_tfidf(
         input_lemma_vec,
@@ -548,7 +490,6 @@ def generate_similar_texts(input_text, num_similar=5, output_dir="benzer_metinle
         tfidf_lemma_model.get_feature_names_out()
     )
 
-    # TF-IDF ile metin üret (stemmed)
     input_stem_vec = tfidf_stem_model.transform([' '.join(input_stems[0])])
     tfidf_stem_text = generate_from_tfidf(
         input_stem_vec,
@@ -556,19 +497,16 @@ def generate_similar_texts(input_text, num_similar=5, output_dir="benzer_metinle
         tfidf_stem_model.get_feature_names_out()
     )
 
-    # Word2Vec ile metin üret (lemmatized)
     w2v_lemma_text = generate_from_word2vec(
         input_lemmas[0],
         w2v_lemma_model
     )
 
-    # Word2Vec ile metin üret (stemmed)
     w2v_stem_text = generate_from_word2vec(
         input_stems[0],
         w2v_stem_model
     )
 
-    # Tüm üretilen metinleri birleştir
     generated_texts = {
         "tfidf_lemma": tfidf_lemma_text,
         "tfidf_stem": tfidf_stem_text,
@@ -576,7 +514,6 @@ def generate_similar_texts(input_text, num_similar=5, output_dir="benzer_metinle
         "w2v_stem": w2v_stem_text,
     }
 
-    # Metinleri dosyaya yaz
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for method, text in generated_texts.items():
         if text.strip():  # Boş olmayan metinleri kaydet
@@ -622,30 +559,23 @@ def process_files():
         except Exception as e:
             print(f"Hata: {txt_file} - {str(e)}")
 
-    # Zipf analizlerini uygula
     apply_zipfs_law(all_tokens, "orijinal")
     for i in range(8):
         apply_zipfs_law(all_lemmas[i], f"lemma_{i + 1}")
         apply_zipfs_law(all_stems[i], f"stem_{i + 1}")
 
-    # Word2Vec modellerini oluştur ve kaydet
     for i in range(8):
-        # Cümlelere göre böl
         lemma_sentences = split_into_sentences(all_lemmas[i])
         stem_sentences = split_into_sentences(all_stems[i])
 
-        # Lemmatized modeller
         lemma_model = Word2Vec(lemma_sentences, vector_size=100, window=5, min_count=1, workers=4)
         lemma_model.save(f"word2vec_models/lemmatized/lemma_model_{i + 1}.model")
 
-        # Stemmed modeller
         stem_model = Word2Vec(stem_sentences, vector_size=100, window=5, min_count=1, workers=4)
         stem_model.save(f"word2vec_models/stemmed/stem_model_{i + 1}.model")
 
-    # TF-IDF modellerini oluştur
     create_tfidf_models(all_lemmas, all_stems)
 
-    # Temizlenmiş verileri kaydet
     with open("temizlenmis_veriler/anlam_butunlugu_bozan_kelimeler.txt", "w", encoding="utf-8") as f:
         f.write("STOP WORDS LİSTESİ:\n")
         f.write("\n".join(sorted(STOP_WORDS)))
@@ -660,42 +590,29 @@ def process_files():
 
 
 def score_similar_texts(reference_text, scoring_dir="benzer_metinler"):
-    """
-    Benzer metinleri referans metne göre puanlar (1-5 arası)
 
-    Args:
-        reference_text (str): Karşılaştırma için referans metin
-        scoring_dir (str): Puanlanacak dosyaların bulunduğu klasör
-    """
-
-    # Klasördeki tüm .txt dosyalarını al
     similar_files = glob.glob(os.path.join(scoring_dir, "*.txt"))  # glob modülünü kullan
 
     if not similar_files:
         print("Puanlanacak dosya bulunamadı.")
         return
 
-    # Referans metni işle
     _, ref_lemmas, _ = process_text(reference_text)
 
-    # TF-IDF modelini yükle
     try:
         tfidf_model = joblib.load('tfidf_models/tfidf_lemmatized.model')
     except Exception as e:
         print(f"TF-IDF modeli yüklenemedi: {str(e)}")
         return
 
-    # Referans vektörü oluştur
     ref_vec = tfidf_model.transform([' '.join(ref_lemmas[0])])
 
-    # Her dosyayı oku ve puanla
     results = []
     for file_path in similar_files:
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
 
-                # Üretilen metni bul (dosya içeriğinden)
                 generated_text = ""
                 lines = content.split('\n')
                 for line in lines:
@@ -706,37 +623,31 @@ def score_similar_texts(reference_text, scoring_dir="benzer_metinler"):
                 if not generated_text:
                     continue
 
-                # Metni işle ve vektörleştir
                 _, gen_lemmas, _ = process_text(generated_text)
                 gen_vec = tfidf_model.transform([' '.join(gen_lemmas[0])])
 
-                # Benzerlik skorunu hesapla
                 similarity = cosine_similarity(ref_vec, gen_vec)[0][0]
 
-                # Skoru 1-5 aralığına dönüştür
                 score = min(5, max(1, round(similarity * 5)))
 
                 results.append({
                     'dosya': os.path.basename(file_path),
                     'benzerlik': similarity,
                     'puan': score,
-                    'metin': generated_text[:100] + "..."  # Önizleme
+                    'metin': generated_text[:100] + "..." 
                 })
 
         except Exception as e:
             print(f"{file_path} işlenirken hata: {str(e)}")
 
-    # Sonuçları DataFrame'e dönüştür ve kaydet
     if results:
         df = pd.DataFrame(results)
         df = df.sort_values('benzerlik', ascending=False)
 
-        # CSV olarak kaydet
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = os.path.join(scoring_dir, f"metin_puanlari_{timestamp}.csv")
         df.to_csv(output_file, index=False, encoding='utf-8-sig')
 
-        # Sonuçları göster
         print("\nMetin Puanlama Sonuçları:")
         print(df[['dosya', 'puan', 'benzerlik']].to_string(index=False))
         print(f"\nDetaylı sonuçlar kaydedildi: {output_file}")
@@ -751,20 +662,16 @@ if __name__ == "__main__":
     lemmas, stems = process_files()
     print(f"İşlem tamamlandı. 8 lemmatized, 8 stemmed ve 2 TF-IDF modeli oluşturuldu.")
 
-    # Örnek metin girişini test et
     sample_text = input("\nLütfen örnek bir cümle girin: ")
     process_input_text(sample_text)
 
-    # Benzer metinler üret
     generated_texts = generate_similar_texts(sample_text)
 
-    # Üretilen metinleri göster
     print("\nÜretilen Benzer Metinler:")
     for method, text in generated_texts.items():
         print(f"\n--- {method.upper()} ---")
         print(text[:500] + "..." if len(text) > 500 else text)
 
-    # Üretilen metinleri puanla
     print("\n--- Metin Puanlama İşlemi ---")
     score_similar_texts(sample_text)
 
